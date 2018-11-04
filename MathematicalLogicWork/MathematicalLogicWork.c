@@ -2,31 +2,49 @@
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include <wctype.h>
 
 #define MAXLENTH 1000
+#define IDENTIFIER_LENTH 10
 
 const enum symbol 
 { 
 	LBRACE = 0, RBRACE, COMMA, SHARP, 
-	TRUE, FALSE, AND, OR, NOT, EXCLUSIVEOR, IMPLICATION,
-	EQUIVALENCE
+	TRUE, FALSE, AND, OR, NOT, 
+	EXCLUSIVEOR, IMPLICATION, EQUIVALENCE, 
+	IDENTIFIER = 12, DIGITSTR  
+};
+
+const wchar_t *symbolName[] = 
+{
+	L"LBRACE", L"RBRACE", L"COMMA", L"SHARP",
+	L"TRUE", L"FALSE", L"AND", L"OR", L"NOT",
+	L"EXCLUSIVEOR", L"IMPLICATION", L"EQUIVALENCE",
+	L"IDENTIFIER", L"DIGITSTR"
+};
+
+const wchar_t symbolSet[] =
+{
+	L'(', L')', L',', L'#',
+	L'1', L'0', L'∧', L'∨', L'¬', 
+	L'⊕', L'→', L'↔'
 };
 
 int index = 0;
 
-void jumpSpace(char *expression);
-int getSymbol(char *expression);
+void jumpSpace(wchar_t *expression);
+int getSymbol(wchar_t *expression);
 
 
-void parseExpression(char *expression);
-void parseConj(char *expression);
-void parseLevelFiveItem(char *expression);
-void parseLevelFourItem(char *expression);
-void parseLevelThreeItem(char *expression);
-void parseLevelTwoItem(char *expression);
-void parseLevelOneItem(char *expression);
-void parseFactor(char *expression);
-void parseIdentifier(char *expression);
+void parseExpression(wchar_t *expression);
+void parseConj(wchar_t *expression);
+void parseLevelFiveItem(wchar_t *expression);
+void parseLevelFourItem(wchar_t *expression);
+void parseLevelThreeItem(wchar_t *expression);
+void parseLevelTwoItem(wchar_t *expression);
+void parseLevelOneItem(wchar_t *expression);
+void parseFactor(wchar_t *expression);
+void parseIdentifier(wchar_t *expression);
 
 int main(int argc, char *argv[])
 {
@@ -34,7 +52,8 @@ int main(int argc, char *argv[])
 	wchar_t expression[MAXLENTH];
 	FILE *inputFile;
 	FILE *outputFile;
-	
+	int _symbol;
+
 	if (argc == 3)
 	{
 		printf("%s %s\n", argv[1], argv[2]);
@@ -61,91 +80,163 @@ int main(int argc, char *argv[])
 	while (!feof(inputFile))
 	{
 		fgetws(expression, MAXLENTH - 1, inputFile);
+		expression[wcslen(expression) - 1] = L'\0';
+		
+		wprintf(L"%s\n", expression);
+		
+		do{
+			_symbol = getSymbol(expression);
+			wprintf(L"%s\n", symbolName[_symbol]);
+		} while (_symbol != -1);
 
-		wprintf(L"%s", expression);
+		printf("\n");
+		//parseExpression(expression);
+		//fputws(expression, outputFile);
 		
-		fputws(expression, outputFile);
-		
-		wmemset(expression, 0, MAXLENTH);
+		wmemset(expression, 0, MAXLENTH-1);
+		index = 0;
 	}
 	fclose(inputFile);
 	fclose(outputFile);
-	//parseExpression(expression);
+	
 	
 	getchar();
 	return 0;
 }
 
-void jumpSpace(char *expression)
+void jumpSpace(wchar_t *expression)
 {
-	while (expression[index] == ' ')
+	while (expression[index] == L' ')
 	{
 		index++;
 	}
 }
 
-int getSymbol(char * expression)
+int getSymbol(wchar_t * expression)
 {
-	int symbolIndex = 0;
+	int _symbolIndex = 0;
+	wchar_t _symbol[IDENTIFIER_LENTH + 1];
 	
-	
+	jumpSpace(expression);
+	printf("currentdex:%d sizeofexpression:%d ",index, wcslen(expression));
+	if (index >= (int)wcslen(expression))
+	{
+		return -1;
+	}
 
 	switch (expression[index])
 	{
-	case 'a':
-		break;
-		
+	case L'(':
+		index++;
+		return LBRACE;
+	case L')':
+		index++;
+		return RBRACE;
+	case L',':
+		index++;
+		return COMMA;
+	case L'#':
+		index++;
+		return SHARP;
+	case L'1':
+		index++;
+		return TRUE;
+	case L'0':
+		index++;
+		return FALSE;
+	case L'∧':
+		index++;
+		return AND;
+	case L'∨':
+		index++;
+		return OR;
+	case L'¬':
+		index++;
+		return NOT;
+	case L'⊕':
+		index++;
+		return EXCLUSIVEOR;
+	case L'→':
+		index++;
+		return IMPLICATION;
+	case L'↔':
+		index++;
+		return EQUIVALENCE;
+	default:
+		if (iswalpha(expression[index]))
+		{
+			while (/*_symbolIndex < IDENTIFIER_LENTH && */
+				   (iswalpha(expression[index])||iswdigit(expression[index])))
+			{
+				_symbol[_symbolIndex++] = expression[index++];
+			}
+			_symbol[_symbolIndex] = L'\0';
+			return IDENTIFIER;
+		}
+		else if (iswdigit(expression[index]))
+		{
+			while (iswdigit(expression[index]))
+			{
+				_symbol[_symbolIndex++] = expression[index++];
+			}
+			_symbol[_symbolIndex] = L'\0';
+			return DIGITSTR;
+		}
+		return -1;
 	}
 
-	return 0;
 }
 
-void parseExpression(char * expression)
+void parseExpression(wchar_t * expression)
 {
-	jumpSpace(expression);
-	if (expression[index] == '#')
+	if (getSymbol(expression)==SHARP)
 	{
 		parseConj(expression);
 		parseLevelFiveItem(expression);
 	}
+	else
+	{
+		parseLevelFiveItem(expression);
+		parseConj(expression);
+	}
 }
 
-void parseConj(char * expression)
+void parseConj(wchar_t * expression)
 {
 	//index = 0
 }
 
-void parseLevelFiveItem(char * expression)
+void parseLevelFiveItem(wchar_t * expression)
 {
 	parseLevelFourItem(expression);
 	//index at ?
 }
 
-void parseLevelFourItem(char *expression)
+void parseLevelFourItem(wchar_t *expression)
 {
 	parseLevelThreeItem(expression);
 
 }
 
-void parseLevelThreeItem(char *expression)
+void parseLevelThreeItem(wchar_t *expression)
 {
 	parseLevelTwoItem(expression);
 
 }
 
-void parseLevelTwoItem(char *expression)
+void parseLevelTwoItem(wchar_t *expression)
 {
 	parseLevelOneItem(expression);
 
 }
 
-void parseLevelOneItem(char *expression)
+void parseLevelOneItem(wchar_t *expression)
 {
 	parseFactor(expression);
 
 }
 
-void parseFactor(char *expression)
+void parseFactor(wchar_t *expression)
 {
 	switch (expression[index])
 	{
@@ -171,7 +262,7 @@ void parseFactor(char *expression)
 	}
 }
 
-void parseIdentifier(char *expression)
+void parseIdentifier(wchar_t *expression)
 {
 
 }
