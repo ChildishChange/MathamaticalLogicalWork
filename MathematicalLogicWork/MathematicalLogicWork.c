@@ -337,7 +337,8 @@ void parseConj(wchar_t * expression)
 				{
 					//新建
 					wcsncpy(functionList[funIndex].name, currentSymbol, IDENTIFIER_LENGTH + 1);
-					if (getSymbol(expression) == DIGITSTR)
+					_sym = getSymbol(expression);
+					if (_sym == DIGITSTR || _sym == TRUE || _sym == FALSE)
 					{
 						//数字转换
 						functionList[funIndex].paraNumber = _wtoi(currentSymbol);
