@@ -1,4 +1,6 @@
-﻿#include <stdio.h>
+﻿#define _CRT_SECURE_NO_WARNINGS
+
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -6,21 +8,48 @@
 
 #pragma region MACRO
 
-#define MAXLENTH 1000
-#define IDENTIFIER_LENGTH 10
+
+#define MAXLENTH 1000 //单行最长长度
+#define MAXPARANUM 10 //函数最大参数数量
+#define IDENTIFIER_LENGTH 10 //标识符最大长度
+#define VARIABLE_NUMBER 10 //命题变元最大数量
+#define FUNCTION_NUMBER 10 //函数最大数量
+#define TRUTHTABLE_LENGTH 1024 //真值表最大长度
 
 #pragma endregion
 
 #pragma region GLOBAL
 
-int startIndex;
-int index = 0;
+int layer = 0; //当前所处的语法树深度
+int startIndex = 0; //getSymbol运行前index所处的位置
+int index = 0; //当前词法分析到的位置
+wchar_t currentSymbol[IDENTIFIER_LENGTH + 1]; //目前分析得到的标识符内容
 
-int currentSymbol;
+struct function //函数列表
+{
+	wchar_t name[IDENTIFIER_LENGTH + 1];
+	int paraNumber;
+	wchar_t paras[MAXPARANUM];
+	wchar_t truthTable[TRUTHTABLE_LENGTH];
+	
+	//计算函数时，先获取其参数的值，然后调用
+	/*
+	按照参数顺序计算值，然后查找真值表，返回值
+	*/
 
-int layer = 0;
+}functionList[FUNCTION_NUMBER];
+int funIndex = 0;
 
-const enum symbol
+struct variable //命题变元列表
+{
+	wchar_t name[IDENTIFIER_LENGTH + 1];
+	int truthValue;
+	//计算公式时，首先赋值，然后计算值，计算值时先查表
+}variableList[VARIABLE_NUMBER];
+int varIndex = 0;
+
+
+const enum symbol //词法符号
 {
 	LBRACE = 0, RBRACE, COMMA, SHARP,
 	TRUE, FALSE, AND, OR, NOT,
@@ -63,6 +92,31 @@ void parseFactor(wchar_t *expression);
 
 #pragma endregion
 
+#pragma region SYMBOL
+
+int searchVarList(wchar_t *name);
+int searchFunList(wchar_t *name);
+
+#pragma endregion
+
+
+
+#pragma region TODO
+/*
+TODO:
+生成符号表
+符号表包括命题变元表、函数表
+每当读取到标识符时，先查表，判断是否已经创建
+然后新建
+
+
+TODO:
+运行前需要对所有函数检查是否定义
+
+
+*/
+
+#pragma endregion
 
 
 
@@ -111,17 +165,31 @@ int main(int argc, char *argv[])
 		printf("\n");
 		*/
 		parseExpression(expression);
-		//fputws(expression, outputFile);
+		
 		wprintf(L"%s\n", expression);
-		while (index > 0)
+		
+		funIndex--;
+		wprintf(L"Print Function Table:\n");
+		while (funIndex>=0)
 		{
-			putchar(' ');
-			index--;
+			wprintf(L"Num.%d function : %s\n",funIndex,functionList[funIndex].name);
+			wprintf(L"Number of parameters : %d\n",functionList[funIndex].paraNumber);
+			wprintf(L"Truth Table : %s\n",functionList[funIndex].truthTable);
+			funIndex--;
 		}
-		printf("1\n");
+
+		varIndex--;
+		wprintf(L"Print Variable Table:\n");
+		while (varIndex >= 0)
+		{
+			wprintf(L"Num.%d variable : %s\n", varIndex, variableList[varIndex].name);
+			varIndex--;
+		}
 
 		wmemset(expression, 0, MAXLENTH-1);
 		index = 0;
+		funIndex = 0;
+		varIndex = 0;
 	}
 	fclose(inputFile);
 	fclose(outputFile);
@@ -140,13 +208,15 @@ void jumpSpace(wchar_t *expression)
 }
 void jumpBackward()
 {
+	wmemset(currentSymbol, 0, IDENTIFIER_LENGTH + 1);
 	index = startIndex;
 }
 
 int getSymbol(wchar_t * expression)
 {
 	int _symbolIndex = 0;
-	wchar_t _symbol[IDENTIFIER_LENGTH + 1];
+
+	wmemset(currentSymbol, 0, IDENTIFIER_LENGTH + 1);
 	
 	startIndex = index;
 
@@ -156,7 +226,7 @@ int getSymbol(wchar_t * expression)
 	
 	if (index >= (int)wcslen(expression))
 	{
-		return -1;
+		return -2;
 	}
 
 	switch (expression[index])
@@ -203,18 +273,18 @@ int getSymbol(wchar_t * expression)
 			while (/*_symbolIndex < IDENTIFIER_LENTH && */
 				   (iswalpha(expression[index])||iswdigit(expression[index])))
 			{
-				_symbol[_symbolIndex++] = expression[index++];
+				currentSymbol[_symbolIndex++] = expression[index++];
 			}
-			_symbol[_symbolIndex] = L'\0';
+			currentSymbol[_symbolIndex] = L'\0';
 			return IDENTIFIER;
 		}
 		else if (iswdigit(expression[index]))
 		{
 			while (iswdigit(expression[index]))
 			{
-				_symbol[_symbolIndex++] = expression[index++];
+				currentSymbol[_symbolIndex++] = expression[index++];
 			}
-			_symbol[_symbolIndex] = L'\0';
+			currentSymbol[_symbolIndex] = L'\0';
 			return DIGITSTR;
 		}
 		return -1;
@@ -245,35 +315,67 @@ void parseConj(wchar_t * expression)
 {
 	layer++;
 	printf("parseConj : Current in layer : %d\n", layer);
-	//#
+	int _truthTableIndex = 0;
 	if (getSymbol(expression) == SHARP)
 	{
 		//标识符
-		while (getSymbol(expression) != -1)
+		while (getSymbol(expression) != -2)
 		{
 			jumpBackward();
-			getSymbol(expression) == IDENTIFIER;
-			getSymbol(expression) == DIGITSTR;
-
-			while (getSymbol(expression) != IDENTIFIER)
+			if (getSymbol(expression) == IDENTIFIER)
 			{
-				jumpBackward();
-				if (getSymbol(expression) == TRUE)
+				if (searchFunList(currentSymbol) == -1)
 				{
-					putchar('1');
+					//新建
+					wcsncpy(functionList[funIndex].name, currentSymbol, IDENTIFIER_LENGTH + 1);
+					if (getSymbol(expression) == DIGITSTR)
+					{
+						//数字转换
+						functionList[funIndex].paraNumber = _wtoi(currentSymbol);
+						
+						while (getSymbol(expression) != IDENTIFIER)//bug在这一行
+						{
+							jumpBackward();
+							
+							if (getSymbol(expression) == -2)
+							{
+								break;
+							}
+							else
+							{
+								jumpBackward();
+							}
+
+							if (getSymbol(expression) == TRUE)
+							{
+								putchar('1');
+								functionList[funIndex].truthTable[_truthTableIndex++] = L'1';
+								continue;
+							}
+							else
+							{
+								jumpBackward();
+								if (getSymbol(expression) == FALSE)
+								{
+									putchar('0');
+									functionList[funIndex].truthTable[_truthTableIndex++] = L'0';
+								}
+								continue;
+							}
+						}
+						putchar('\n');
+						jumpBackward();
+					}
+					functionList[funIndex].truthTable[_truthTableIndex] = L'\0';
+					funIndex++;
+					_truthTableIndex = 0;
 				}
 				else
 				{
-					jumpBackward();
-					if (getSymbol(expression) == FALSE)
-					{
-						putchar('0');
-
-					}
+					//报错
 				}
 			}
-			putchar('\n');
-			jumpBackward();
+			
 		}
 	}
 	else
@@ -357,8 +459,10 @@ void parseLevelOneItem(wchar_t *expression)
 
 void parseFactor(wchar_t *expression)
 {
+	wchar_t tempIdentifier[IDENTIFIER_LENGTH + 1];
 	layer++;
 	printf("parseFactor : Current in layer : %d\n", layer);
+
 	switch (getSymbol(expression))
 	{
 	case NOT:
@@ -381,9 +485,16 @@ void parseFactor(wchar_t *expression)
 
 	case IDENTIFIER:
 		//function
+		wcsncpy(tempIdentifier,currentSymbol, IDENTIFIER_LENGTH + 1);
 		if (getSymbol(expression) == LBRACE)
 		{
 			//function without para
+
+			if (searchFunList(tempIdentifier) == -1)
+			{
+
+			}
+
 			if (getSymbol(expression) == RBRACE)
 			{
 				break;
@@ -411,6 +522,13 @@ void parseFactor(wchar_t *expression)
 		{
 			//预读了，所以要退一位
 			jumpBackward();
+			//首先查找是否有过这个符号
+			if (searchVarList(tempIdentifier) == -1)
+			{
+				//新建符号
+				wcsncpy(variableList[varIndex].name, tempIdentifier, IDENTIFIER_LENGTH + 1);
+				varIndex++;
+			}
 			break;
 		}
 		break;
@@ -424,3 +542,29 @@ void parseFactor(wchar_t *expression)
 	layer--;
 }
 
+
+int searchVarList(wchar_t *name)
+{
+	int i = 0;
+	for (; i < VARIABLE_NUMBER; i++)
+	{
+		if (wcsncmp(variableList[i].name, name, wcslen(name)) == 0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
+int searchFunList(wchar_t * name)
+{
+	int i = 0;
+	for (; i < FUNCTION_NUMBER; i++)
+	{
+		if (wcsncmp(functionList[i].name, name, wcslen(name)) == 0)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
