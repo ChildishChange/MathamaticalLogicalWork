@@ -546,7 +546,7 @@ void parseFactor(wchar_t *expression)
 int searchVarList(wchar_t *name)
 {
 	int i = 0;
-	for (; i < VARIABLE_NUMBER; i++)
+	for (; i < varIndex; i++)
 	{
 		if (wcsncmp(variableList[i].name, name, wcslen(name)) == 0)
 		{
@@ -559,7 +559,7 @@ int searchVarList(wchar_t *name)
 int searchFunList(wchar_t * name)
 {
 	int i = 0;
-	for (; i < FUNCTION_NUMBER; i++)
+	for (; i < funIndex; i++)
 	{
 		if (wcsncmp(functionList[i].name, name, wcslen(name)) == 0)
 		{
