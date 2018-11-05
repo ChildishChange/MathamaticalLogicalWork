@@ -104,10 +104,13 @@ int searchFunList(wchar_t *name);
 #pragma region TODO
 /*
 TODO:
-生成符号表
-符号表包括命题变元表、函数表
-每当读取到标识符时，先查表，判断是否已经创建
-然后新建
+现在的函数解析有问题我觉得
+
+应该从表达式中解析函数，同时可以解析出参数个数，但是不能解析出真值表
+
+解析函数时则补上真值表同时判断
+
+另外在运行前需要确定函数都有真值表
 
 
 TODO:
@@ -316,15 +319,18 @@ void parseConj(wchar_t * expression)
 	layer++;
 	printf("parseConj : Current in layer : %d\n", layer);
 	int _truthTableIndex = 0;
+	int _searchResult = -1;
+
 	if (getSymbol(expression) == SHARP)
 	{
-		//标识符
+		//没有读完
 		while (getSymbol(expression) != -2)
 		{
 			jumpBackward();
 			if (getSymbol(expression) == IDENTIFIER)
 			{
-				if (searchFunList(currentSymbol) == -1)
+				_searchResult = searchFunList(currentSymbol);
+				if (_searchResult == -1)
 				{
 					//新建
 					wcsncpy(functionList[funIndex].name, currentSymbol, IDENTIFIER_LENGTH + 1);
@@ -368,12 +374,50 @@ void parseConj(wchar_t * expression)
 					}
 					functionList[funIndex].truthTable[_truthTableIndex] = L'\0';
 					funIndex++;
-					_truthTableIndex = 0;
 				}
-				else
+				else//不报错，检查与补全
 				{
-					//报错
+					if (getSymbol(expression) == DIGITSTR)//这里也有bug
+					{
+						//数字转换
+						if (functionList[_searchResult].paraNumber == _wtoi(currentSymbol))
+						{
+							while (getSymbol(expression) != IDENTIFIER)
+							{
+								jumpBackward();
+
+								if (getSymbol(expression) == -2){break;}
+								else{ jumpBackward(); }
+
+								if (getSymbol(expression) == TRUE)
+								{
+									putchar('1');
+									functionList[_searchResult].truthTable[_truthTableIndex++] = L'1';
+									continue;
+								}
+								else
+								{
+									jumpBackward();
+									if (getSymbol(expression) == FALSE)
+									{
+										putchar('0');
+										functionList[_searchResult].truthTable[_truthTableIndex++] = L'0';
+									}
+									continue;
+								}
+							}
+							putchar('\n');
+							jumpBackward();
+						}
+						else
+						{
+							//这里要报错
+						}
+					}
+					functionList[_searchResult].truthTable[_truthTableIndex] = L'\0';
 				}
+				_truthTableIndex = 0;
+				_searchResult = -1;
 			}
 			
 		}
@@ -460,7 +504,10 @@ void parseLevelOneItem(wchar_t *expression)
 void parseFactor(wchar_t *expression)
 {
 	wchar_t tempIdentifier[IDENTIFIER_LENGTH + 1];
+	int _paraNumber = 0;
+	int _tempFunIndex = 0;
 	layer++;
+	
 	printf("parseFactor : Current in layer : %d\n", layer);
 
 	switch (getSymbol(expression))
@@ -484,38 +531,54 @@ void parseFactor(wchar_t *expression)
 		break;
 
 	case IDENTIFIER:
-		//function
 		wcsncpy(tempIdentifier,currentSymbol, IDENTIFIER_LENGTH + 1);
+		//function
 		if (getSymbol(expression) == LBRACE)
 		{
-			//function without para
-
-			if (searchFunList(tempIdentifier) == -1)
+			if (searchFunList(tempIdentifier) == -1)//没有才新建
 			{
-
-			}
-
-			if (getSymbol(expression) == RBRACE)
-			{
-				break;
-			}
-			//function with para
-			else
-			{
-				//预读了，退一位
-				jumpBackward();
-				parseLevelFiveItem(expression);
-				while (getSymbol(expression) == COMMA)
-				{
-					parseLevelFiveItem(expression);
-				}
-				//退出时应该预读了一个 RBRACE，退一位
-				jumpBackward();
+				//function without para
+				wcsncpy(functionList[funIndex].name, tempIdentifier, IDENTIFIER_LENGTH + 1);
 				if (getSymbol(expression) == RBRACE)
 				{
+					functionList[funIndex].paraNumber = _paraNumber;
+					funIndex++;
 					break;
 				}
+				else //function with para
+				{
+					//预读了，退一位
+					jumpBackward();
+					//如果参数是函数，那么需要给自己占位，需要修改funIndex，等到运行完后再返回到原始位置
+					_tempFunIndex = funIndex;
+					funIndex++;
+					parseLevelFiveItem(expression);
+					funIndex = _tempFunIndex;
+					_paraNumber++;
+
+					while (getSymbol(expression) == COMMA)
+					{
+						_tempFunIndex = funIndex;
+						funIndex++;
+						parseLevelFiveItem(expression);
+						funIndex = _tempFunIndex;
+						_paraNumber++;
+					}
+					//退出时应该预读了一个 RBRACE，退一位
+					jumpBackward();
+					if (getSymbol(expression) == RBRACE)
+					{
+						functionList[funIndex].paraNumber = _paraNumber;
+						funIndex++;
+						break;
+					}
+				}
 			}
+			else//有的话就需要检查是否一致了。。。
+			{
+
+			}
+
 		}
 		//only identifier
 		else
