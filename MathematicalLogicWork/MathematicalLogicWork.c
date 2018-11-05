@@ -4,18 +4,31 @@
 #include <wchar.h>
 #include <wctype.h>
 
-#define MAXLENTH 1000
-#define IDENTIFIER_LENTH 10
+#pragma region MACRO
 
-const enum symbol 
-{ 
-	LBRACE = 0, RBRACE, COMMA, SHARP, 
-	TRUE, FALSE, AND, OR, NOT, 
-	EXCLUSIVEOR, IMPLICATION, EQUIVALENCE, 
-	IDENTIFIER = 12, DIGITSTR  
+#define MAXLENTH 1000
+#define IDENTIFIER_LENGTH 10
+
+#pragma endregion
+
+#pragma region GLOBAL
+
+int startIndex;
+int index = 0;
+
+int currentSymbol;
+
+int layer = 0;
+
+const enum symbol
+{
+	LBRACE = 0, RBRACE, COMMA, SHARP,
+	TRUE, FALSE, AND, OR, NOT,
+	EXCLUSIVEOR, IMPLICATION, EQUIVALENCE,
+	IDENTIFIER = 12, DIGITSTR
 };
 
-const wchar_t *symbolName[] = 
+const wchar_t *symbolName[] =
 {
 	L"LBRACE", L"RBRACE", L"COMMA", L"SHARP",
 	L"TRUE", L"FALSE", L"AND", L"OR", L"NOT",
@@ -26,11 +39,14 @@ const wchar_t *symbolName[] =
 const wchar_t symbolSet[] =
 {
 	L'(', L')', L',', L'#',
-	L'1', L'0', L'∧', L'∨', L'¬', 
+	L'1', L'0', L'∧', L'∨', L'¬',
 	L'⊕', L'→', L'↔'
 };
 
-int index = 0;
+#pragma endregion
+
+
+#pragma region FUNCTION
 
 void jumpSpace(wchar_t *expression);
 int getSymbol(wchar_t *expression);
@@ -44,7 +60,11 @@ void parseLevelThreeItem(wchar_t *expression);
 void parseLevelTwoItem(wchar_t *expression);
 void parseLevelOneItem(wchar_t *expression);
 void parseFactor(wchar_t *expression);
-void parseIdentifier(wchar_t *expression);
+
+#pragma endregion
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -82,17 +102,24 @@ int main(int argc, char *argv[])
 		fgetws(expression, MAXLENTH - 1, inputFile);
 		expression[wcslen(expression) - 1] = L'\0';
 		
-		wprintf(L"%s\n", expression);
-		
+		/*
 		do{
 			_symbol = getSymbol(expression);
 			wprintf(L"%s\n", symbolName[_symbol]);
 		} while (_symbol != -1);
 
 		printf("\n");
-		//parseExpression(expression);
+		*/
+		parseExpression(expression);
 		//fputws(expression, outputFile);
-		
+		wprintf(L"%s\n", expression);
+		while (index > 0)
+		{
+			putchar(' ');
+			index--;
+		}
+		printf("1\n");
+
 		wmemset(expression, 0, MAXLENTH-1);
 		index = 0;
 	}
@@ -111,14 +138,22 @@ void jumpSpace(wchar_t *expression)
 		index++;
 	}
 }
+void jumpBackward()
+{
+	index = startIndex;
+}
 
 int getSymbol(wchar_t * expression)
 {
 	int _symbolIndex = 0;
-	wchar_t _symbol[IDENTIFIER_LENTH + 1];
+	wchar_t _symbol[IDENTIFIER_LENGTH + 1];
 	
+	startIndex = index;
+
 	jumpSpace(expression);
-	printf("currentdex:%d sizeofexpression:%d ",index, wcslen(expression));
+	
+	//printf("currentdex:%d sizeofexpression:%d ",index, wcslen(expression));
+	
 	if (index >= (int)wcslen(expression))
 	{
 		return -1;
@@ -188,81 +223,204 @@ int getSymbol(wchar_t * expression)
 }
 
 void parseExpression(wchar_t * expression)
-{
+{	
+	layer++;
+	printf("parseExpression : Current in layer : %d\n", layer);
 	if (getSymbol(expression)==SHARP)
 	{
+		jumpBackward();
 		parseConj(expression);
-		parseLevelFiveItem(expression);
 	}
 	else
 	{
+		jumpBackward();
 		parseLevelFiveItem(expression);
 		parseConj(expression);
 	}
+	printf("parseExpression : Current out layer : %d\n", layer);
+	layer--;
 }
 
 void parseConj(wchar_t * expression)
 {
+	layer++;
+	printf("parseConj : Current in layer : %d\n", layer);
+	//#
+	if (getSymbol(expression) == SHARP)
+	{
+		//标识符
+		while (getSymbol(expression) != -1)
+		{
+			jumpBackward();
+			getSymbol(expression) == IDENTIFIER;
+			getSymbol(expression) == DIGITSTR;
+
+			while (getSymbol(expression) != IDENTIFIER)
+			{
+				jumpBackward();
+				if (getSymbol(expression) == TRUE)
+				{
+					putchar('1');
+				}
+				else
+				{
+					jumpBackward();
+					if (getSymbol(expression) == FALSE)
+					{
+						putchar('0');
+
+					}
+				}
+			}
+			putchar('\n');
+			jumpBackward();
+		}
+	}
+	else
+	{
+		jumpBackward();
+	}
+	printf("parseConj : Current out layer : %d\n", layer);
+	layer--;
 	//index = 0
 }
 
 void parseLevelFiveItem(wchar_t * expression)
 {
+	layer++;
+	printf("parseLevelFiveItem : Current in layer : %d\n", layer);
 	parseLevelFourItem(expression);
-	//index at ?
+	while (getSymbol(expression) == EQUIVALENCE)
+	{
+		parseLevelFourItem(expression);
+	}
+	jumpBackward();
+	printf("parseLevelFiveItem : Current out layer : %d\n", layer);
+	layer--;
 }
 
 void parseLevelFourItem(wchar_t *expression)
 {
+	layer++;
+	printf("parseLevelFourItem : Current in layer : %d\n", layer);
 	parseLevelThreeItem(expression);
-
+	while (getSymbol(expression) == IMPLICATION)
+	{
+		parseLevelThreeItem(expression);
+	}
+	jumpBackward();
+	printf("parseLevelFourItem : Current out layer : %d\n", layer);
+	layer--;
 }
 
 void parseLevelThreeItem(wchar_t *expression)
 {
+	layer++;
+	printf("parseLevelThreeItem : Current in layer : %d\n", layer);
 	parseLevelTwoItem(expression);
-
+	while (getSymbol(expression) == EXCLUSIVEOR)
+	{
+		parseLevelTwoItem(expression);
+	}
+	jumpBackward();
+	printf("parseLevelThreeItem : Current out layer : %d\n", layer);
+	layer--;
 }
 
 void parseLevelTwoItem(wchar_t *expression)
 {
+	layer++;
+	printf("parseLevelTwoItem : Current in layer : %d\n", layer);
 	parseLevelOneItem(expression);
-
+	while (getSymbol(expression) == OR)
+	{
+		parseLevelOneItem(expression);
+	}
+	jumpBackward();
+	printf("parseLevelTwoItem : Current out layer : %d\n", layer);
+	layer--;
 }
 
 void parseLevelOneItem(wchar_t *expression)
 {
+	layer++;
+	printf("parseLevelOneItem : Current in layer : %d\n", layer);
 	parseFactor(expression);
-
+	while (getSymbol(expression)==AND)
+	{
+		parseFactor(expression);
+	}
+	jumpBackward();
+	printf("parseLevelOneItem : Current out layer : %d\n", layer);
+	layer--;
 }
 
 void parseFactor(wchar_t *expression)
 {
-	switch (expression[index])
+	layer++;
+	printf("parseFactor : Current in layer : %d\n", layer);
+	switch (getSymbol(expression))
 	{
-	case '¬':
+	case NOT:
+		parseFactor(expression);
 		break;
 
-	case '(':
+	case LBRACE:
+		parseLevelFiveItem(expression);
+		if (getSymbol(expression) == RBRACE)
+		{
+
+		}
 		break;
 
-	case '0':
-
-		break;
-	
-	case '1':
-		
+	case TRUE:
 		break;
 
-	default:
-		parseIdentifier(expression);
+	case FALSE:
+		break;
+
+	case IDENTIFIER:
+		//function
+		if (getSymbol(expression) == LBRACE)
+		{
+			//function without para
+			if (getSymbol(expression) == RBRACE)
+			{
+				break;
+			}
+			//function with para
+			else
+			{
+				//预读了，退一位
+				jumpBackward();
+				parseLevelFiveItem(expression);
+				while (getSymbol(expression) == COMMA)
+				{
+					parseLevelFiveItem(expression);
+				}
+				//退出时应该预读了一个 RBRACE，退一位
+				jumpBackward();
+				if (getSymbol(expression) == RBRACE)
+				{
+					break;
+				}
+			}
+		}
+		//only identifier
+		else
+		{
+			//预读了，所以要退一位
+			jumpBackward();
+			break;
+		}
+		break;
+
+	default:		
 		jumpSpace(expression);
-		
 		break;
+
 	}
+	printf("parseFactor : Current out layer : %d\n", layer);
+	layer--;
 }
 
-void parseIdentifier(wchar_t *expression)
-{
-
-}
