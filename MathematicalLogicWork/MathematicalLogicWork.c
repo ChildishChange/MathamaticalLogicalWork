@@ -511,6 +511,7 @@ void parseFactor(wchar_t *expression)
 	wchar_t tempIdentifier[IDENTIFIER_LENGTH + 1];
 	int _paraNumber = 0;
 	int _tempFunIndex = 0;
+	int _searchFunResult = -1;
 	layer++;
 	
 	printf("parseFactor : Current in layer : %d\n", layer);
@@ -540,7 +541,8 @@ void parseFactor(wchar_t *expression)
 		//function
 		if (getSymbol(expression) == LBRACE)
 		{
-			if (searchFunList(tempIdentifier) == -1)//没有才新建
+			_searchFunResult = searchFunList(tempIdentifier);
+			if (_searchFunResult == -1)//没有才新建
 			{
 				//function without para
 				wcsncpy(functionList[funIndex].name, tempIdentifier, IDENTIFIER_LENGTH + 1);
@@ -578,7 +580,33 @@ void parseFactor(wchar_t *expression)
 			}
 			else//有的话就需要检查是否一致了。。。
 			{
+				if (getSymbol(expression) == RBRACE)
+				{
+					if (functionList[_searchFunResult].paraNumber == 0){break;}
+					else {/*报错*/break; }
+				}
+				else //function with para
+				{
+					//预读了，退一位
+					jumpBackward();
+					//如果参数是函数，那么需要给自己占位，需要修改funIndex，等到运行完后再返回到原始位置
+					
+					parseLevelFiveItem(expression);
+					_paraNumber++;
 
+					while (getSymbol(expression) == COMMA)
+					{
+						parseLevelFiveItem(expression);
+						_paraNumber++;
+					}
+					//退出时应该预读了一个 RBRACE，退一位
+					jumpBackward();
+					if (getSymbol(expression) == RBRACE)
+					{
+						functionList[_searchFunResult].paraNumber = _paraNumber;
+						break;
+					}
+				}
 			}
 
 		}
