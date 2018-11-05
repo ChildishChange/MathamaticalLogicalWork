@@ -247,10 +247,12 @@ int getSymbol(wchar_t * expression)
 		index++;
 		return SHARP;
 	case L'1':
-		index++;
+		currentSymbol[_symbolIndex++] = expression[index++];
+		currentSymbol[_symbolIndex] = L'\0';
 		return TRUE;
 	case L'0':
-		index++;
+		currentSymbol[_symbolIndex++] = expression[index++];
+		currentSymbol[_symbolIndex] = L'\0';
 		return FALSE;
 	case L'∧':
 		index++;
@@ -320,6 +322,7 @@ void parseConj(wchar_t * expression)
 	printf("parseConj : Current in layer : %d\n", layer);
 	int _truthTableIndex = 0;
 	int _searchResult = -1;
+	int _sym = -1;
 
 	if (getSymbol(expression) == SHARP)
 	{
@@ -377,7 +380,8 @@ void parseConj(wchar_t * expression)
 				}
 				else//不报错，检查与补全
 				{
-					if (getSymbol(expression) == DIGITSTR)//这里也有bug
+					_sym = getSymbol(expression);
+					if (_sym == DIGITSTR || _sym == TRUE || _sym == FALSE)
 					{
 						//数字转换
 						if (functionList[_searchResult].paraNumber == _wtoi(currentSymbol))
@@ -551,25 +555,22 @@ void parseFactor(wchar_t *expression)
 					jumpBackward();
 					//如果参数是函数，那么需要给自己占位，需要修改funIndex，等到运行完后再返回到原始位置
 					_tempFunIndex = funIndex;
+					
 					funIndex++;
 					parseLevelFiveItem(expression);
-					funIndex = _tempFunIndex;
 					_paraNumber++;
 
 					while (getSymbol(expression) == COMMA)
 					{
-						_tempFunIndex = funIndex;
 						funIndex++;
 						parseLevelFiveItem(expression);
-						funIndex = _tempFunIndex;
 						_paraNumber++;
 					}
 					//退出时应该预读了一个 RBRACE，退一位
 					jumpBackward();
 					if (getSymbol(expression) == RBRACE)
 					{
-						functionList[funIndex].paraNumber = _paraNumber;
-						funIndex++;
+						functionList[_tempFunIndex].paraNumber = _paraNumber;
 						break;
 					}
 				}
