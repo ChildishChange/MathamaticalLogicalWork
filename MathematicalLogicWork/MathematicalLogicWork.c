@@ -159,16 +159,7 @@ int main(int argc, char *argv[])
 		fgetws(expression, MAXLENTH - 1, inputFile);
 		expression[wcslen(expression) - 1] = L'\0';
 		
-		/*
-		do{
-			_symbol = getSymbol(expression);
-			wprintf(L"%s\n", symbolName[_symbol]);
-		} while (_symbol != -1);
-
-		printf("\n");
-		*/
 		parseExpression(expression);
-		
 		wprintf(L"%s\n", expression);
 		
 		funIndex--;
@@ -189,6 +180,7 @@ int main(int argc, char *argv[])
 			varIndex--;
 		}
 
+		//归零四大天王
 		wmemset(expression, 0, MAXLENTH-1);
 		index = 0;
 		funIndex = 0;
@@ -326,35 +318,24 @@ void parseConj(wchar_t * expression)
 
 	if (getSymbol(expression) == SHARP)
 	{
-		//没有读完
-		while (getSymbol(expression) != -2)
+		while (getSymbol(expression) != -2)//读取所有的联结词定义直到达到文件末尾
 		{
 			jumpBackward();
 			if (getSymbol(expression) == IDENTIFIER)
 			{
 				_searchResult = searchFunList(currentSymbol);
-				if (_searchResult == -1)
+				if (_searchResult == -1)//新建一个联结词
 				{
-					//新建
 					wcsncpy(functionList[funIndex].name, currentSymbol, IDENTIFIER_LENGTH + 1);
 					_sym = getSymbol(expression);
 					if (_sym == DIGITSTR || _sym == TRUE || _sym == FALSE)
 					{
-						//数字转换
 						functionList[funIndex].paraNumber = _wtoi(currentSymbol);
-						
-						while (getSymbol(expression) != IDENTIFIER)//bug在这一行
+						while (getSymbol(expression) != IDENTIFIER)
 						{
 							jumpBackward();
-							
-							if (getSymbol(expression) == -2)
-							{
-								break;
-							}
-							else
-							{
-								jumpBackward();
-							}
+							if (getSymbol(expression) == -2){break;}
+							else { jumpBackward(); }
 
 							if (getSymbol(expression) == TRUE)
 							{
@@ -379,18 +360,16 @@ void parseConj(wchar_t * expression)
 					functionList[funIndex].truthTable[_truthTableIndex] = L'\0';
 					funIndex++;
 				}
-				else//不报错，检查与补全
+				else//检查是否一致并补全真值表
 				{
 					_sym = getSymbol(expression);
 					if (_sym == DIGITSTR || _sym == TRUE || _sym == FALSE)
 					{
-						//数字转换
 						if (functionList[_searchResult].paraNumber == _wtoi(currentSymbol))
 						{
 							while (getSymbol(expression) != IDENTIFIER)
 							{
 								jumpBackward();
-
 								if (getSymbol(expression) == -2){break;}
 								else{ jumpBackward(); }
 
@@ -414,17 +393,13 @@ void parseConj(wchar_t * expression)
 							putchar('\n');
 							jumpBackward();
 						}
-						else
-						{
-							//这里要报错
-						}
+						else{/*这里要报错*/}
 					}
 					functionList[_searchResult].truthTable[_truthTableIndex] = L'\0';
 				}
 				_truthTableIndex = 0;
 				_searchResult = -1;
 			}
-			
 		}
 	}
 	else
@@ -433,7 +408,6 @@ void parseConj(wchar_t * expression)
 	}
 	printf("parseConj : Current out layer : %d\n", layer);
 	layer--;
-	//index = 0
 }
 
 void parseLevelFiveItem(wchar_t * expression)
@@ -512,8 +486,8 @@ void parseFactor(wchar_t *expression)
 	int _paraNumber = 0;
 	int _tempFunIndex = 0;
 	int _searchFunResult = -1;
-	layer++;
 	
+	layer++;
 	printf("parseFactor : Current in layer : %d\n", layer);
 
 	switch (getSymbol(expression))
@@ -521,38 +495,29 @@ void parseFactor(wchar_t *expression)
 	case NOT:
 		parseFactor(expression);
 		break;
-
 	case LBRACE:
 		parseLevelFiveItem(expression);
-		if (getSymbol(expression) == RBRACE)
-		{
-
-		}
+		if (getSymbol(expression) == RBRACE){}
 		break;
-
 	case TRUE:
 		break;
-
 	case FALSE:
 		break;
-
 	case IDENTIFIER:
 		wcsncpy(tempIdentifier,currentSymbol, IDENTIFIER_LENGTH + 1);
-		//function
-		if (getSymbol(expression) == LBRACE)
+		if (getSymbol(expression) == LBRACE)//自定义联结词
 		{
 			_searchFunResult = searchFunList(tempIdentifier);
-			if (_searchFunResult == -1)//没有才新建
+			if (_searchFunResult == -1)//当符号表中不存在时，则新建一个联结词
 			{
-				//function without para
 				wcsncpy(functionList[funIndex].name, tempIdentifier, IDENTIFIER_LENGTH + 1);
-				if (getSymbol(expression) == RBRACE)
+				if (getSymbol(expression) == RBRACE)//该联结词参数数为0
 				{
 					functionList[funIndex].paraNumber = _paraNumber;
 					funIndex++;
 					break;
 				}
-				else //function with para
+				else //该联结词参数不为零
 				{
 					//预读了，退一位
 					jumpBackward();
@@ -578,19 +543,18 @@ void parseFactor(wchar_t *expression)
 					}
 				}
 			}
-			else//有的话就需要检查是否一致了。。。
+			else//当符号表中存在时，检查与之前的是否一致
 			{
 				if (getSymbol(expression) == RBRACE)
 				{
 					if (functionList[_searchFunResult].paraNumber == 0){break;}
 					else {/*报错*/break; }
 				}
-				else //function with para
+				else
 				{
 					//预读了，退一位
 					jumpBackward();
-					//如果参数是函数，那么需要给自己占位，需要修改funIndex，等到运行完后再返回到原始位置
-					
+					//此时不需要给自己占位
 					parseLevelFiveItem(expression);
 					_paraNumber++;
 
@@ -608,33 +572,28 @@ void parseFactor(wchar_t *expression)
 					}
 				}
 			}
-
 		}
-		//only identifier
-		else
+		else//命题变元
 		{
 			//预读了，所以要退一位
 			jumpBackward();
-			//首先查找是否有过这个符号
+			//首先查找是否定义了这个变元
 			if (searchVarList(tempIdentifier) == -1)
 			{
-				//新建符号
+				//新建变元
 				wcsncpy(variableList[varIndex].name, tempIdentifier, IDENTIFIER_LENGTH + 1);
 				varIndex++;
 			}
 			break;
 		}
 		break;
-
 	default:		
 		jumpSpace(expression);
 		break;
-
 	}
 	printf("parseFactor : Current out layer : %d\n", layer);
 	layer--;
 }
-
 
 int searchVarList(wchar_t *name)
 {
