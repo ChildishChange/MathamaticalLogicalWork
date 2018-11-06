@@ -104,13 +104,9 @@ int searchFunList(wchar_t *name);
 #pragma region TODO
 /*
 TODO:
-现在的函数解析有问题我觉得
-
-应该从表达式中解析函数，同时可以解析出参数个数，但是不能解析出真值表
-
-解析函数时则补上真值表同时判断
-
-另外在运行前需要确定函数都有真值表
+生成运算栈
+计算运算栈时，对每一个逻辑联结词，包括自定义联结词
+按照layer从大到小，按照出现的先后顺序从先到后计算运算符
 
 
 TODO:
@@ -210,13 +206,10 @@ void jumpBackward()
 int getSymbol(wchar_t * expression)
 {
 	int _symbolIndex = 0;
-
 	wmemset(currentSymbol, 0, IDENTIFIER_LENGTH + 1);
-	
 	startIndex = index;
-
-	jumpSpace(expression);
 	
+	jumpSpace(expression);
 	//printf("currentdex:%d sizeofexpression:%d ",index, wcslen(expression));
 	
 	if (index >= (int)wcslen(expression))
@@ -267,8 +260,7 @@ int getSymbol(wchar_t * expression)
 	default:
 		if (iswalpha(expression[index]))
 		{
-			while (/*_symbolIndex < IDENTIFIER_LENTH && */
-				   (iswalpha(expression[index])||iswdigit(expression[index])))
+			while ((iswalpha(expression[index])||iswdigit(expression[index])))
 			{
 				currentSymbol[_symbolIndex++] = expression[index++];
 			}
@@ -286,7 +278,6 @@ int getSymbol(wchar_t * expression)
 		}
 		return -1;
 	}
-
 }
 
 void parseExpression(wchar_t * expression)
@@ -416,8 +407,9 @@ void parseLevelFiveItem(wchar_t * expression)
 	printf("parseLevelFiveItem : Current in layer : %d\n", layer);
 	parseLevelFourItem(expression);
 	while (getSymbol(expression) == EQUIVALENCE)
-	{
+	{	
 		parseLevelFourItem(expression);
+		printf("current operation : EQUIVALENCE at layer %d\n",layer);
 	}
 	jumpBackward();
 	printf("parseLevelFiveItem : Current out layer : %d\n", layer);
@@ -432,6 +424,7 @@ void parseLevelFourItem(wchar_t *expression)
 	while (getSymbol(expression) == IMPLICATION)
 	{
 		parseLevelThreeItem(expression);
+		printf("current operation : IMPLICATION at layer %d\n", layer);
 	}
 	jumpBackward();
 	printf("parseLevelFourItem : Current out layer : %d\n", layer);
@@ -446,6 +439,7 @@ void parseLevelThreeItem(wchar_t *expression)
 	while (getSymbol(expression) == EXCLUSIVEOR)
 	{
 		parseLevelTwoItem(expression);
+		printf("current operation : EXCLUSIVEOR at layer %d\n", layer);
 	}
 	jumpBackward();
 	printf("parseLevelThreeItem : Current out layer : %d\n", layer);
@@ -460,6 +454,7 @@ void parseLevelTwoItem(wchar_t *expression)
 	while (getSymbol(expression) == OR)
 	{
 		parseLevelOneItem(expression);
+		printf("current operation : OR at layer %d\n", layer);
 	}
 	jumpBackward();
 	printf("parseLevelTwoItem : Current out layer : %d\n", layer);
@@ -474,6 +469,7 @@ void parseLevelOneItem(wchar_t *expression)
 	while (getSymbol(expression)==AND)
 	{
 		parseFactor(expression);
+		printf("current operation : AND at layer %d\n", layer);
 	}
 	jumpBackward();
 	printf("parseLevelOneItem : Current out layer : %d\n", layer);
@@ -494,6 +490,7 @@ void parseFactor(wchar_t *expression)
 	{
 	case NOT:
 		parseFactor(expression);
+		printf("current operation : NOT at layer %d\n", layer);
 		break;
 	case LBRACE:
 		parseLevelFiveItem(expression);
@@ -538,6 +535,7 @@ void parseFactor(wchar_t *expression)
 					jumpBackward();
 					if (getSymbol(expression) == RBRACE)
 					{
+						wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
 						functionList[_tempFunIndex].paraNumber = _paraNumber;
 						break;
 					}
@@ -567,6 +565,7 @@ void parseFactor(wchar_t *expression)
 					jumpBackward();
 					if (getSymbol(expression) == RBRACE)
 					{
+						wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
 						functionList[_searchFunResult].paraNumber = _paraNumber;
 						break;
 					}
