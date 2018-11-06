@@ -15,6 +15,7 @@
 #define VARIABLE_NUMBER 10 //命题变元最大数量
 #define FUNCTION_NUMBER 10 //函数最大数量
 #define TRUTHTABLE_LENGTH 1024 //真值表最大长度
+#define MAXSTACKDEPTH 102400
 
 #pragma endregion
 
@@ -48,6 +49,15 @@ struct variable //命题变元列表
 }variableList[VARIABLE_NUMBER];
 int varIndex = 0;
 
+struct runtimeFrame
+{
+	wchar_t symbol[IDENTIFIER_LENGTH + 1];
+	int layer;
+	int type;//1 变元 2 第一类 3 自定义
+	int paraNumber;
+	int paraIndex[MAXPARANUM];
+}runtimeStack[MAXSTACKDEPTH];
+int stackIndex = 0;
 
 const enum symbol //词法符号
 {
@@ -99,6 +109,11 @@ int searchFunList(wchar_t *name);
 
 #pragma endregion
 
+#pragma region RUNTIMESTACK
+
+void pushConjOne(int symbolIndex,int layer, int paraNumber);
+
+#pragma endregion
 
 
 #pragma region TODO
@@ -174,6 +189,14 @@ int main(int argc, char *argv[])
 		{
 			wprintf(L"Num.%d variable : %s\n", varIndex, variableList[varIndex].name);
 			varIndex--;
+		}
+
+		stackIndex--;
+		wprintf(L"Print Runtime Stack:\n");
+		while (stackIndex >= 0)
+		{
+			wprintf(L"Num.%d symbol : %s at layer %d\n", stackIndex, runtimeStack[stackIndex].symbol, runtimeStack[stackIndex].layer);
+			stackIndex--;
 		}
 
 		//归零四大天王
@@ -410,6 +433,8 @@ void parseLevelFiveItem(wchar_t * expression)
 	{	
 		parseLevelFourItem(expression);
 		printf("current operation : EQUIVALENCE at layer %d\n",layer);
+		//第一类联结词压栈
+		pushConjOne(EQUIVALENCE, layer, 2);
 	}
 	jumpBackward();
 	printf("parseLevelFiveItem : Current out layer : %d\n", layer);
@@ -425,6 +450,8 @@ void parseLevelFourItem(wchar_t *expression)
 	{
 		parseLevelThreeItem(expression);
 		printf("current operation : IMPLICATION at layer %d\n", layer);
+		//第一类联结词压栈
+		pushConjOne(IMPLICATION, layer, 2);
 	}
 	jumpBackward();
 	printf("parseLevelFourItem : Current out layer : %d\n", layer);
@@ -440,6 +467,8 @@ void parseLevelThreeItem(wchar_t *expression)
 	{
 		parseLevelTwoItem(expression);
 		printf("current operation : EXCLUSIVEOR at layer %d\n", layer);
+		//第一类联结词压栈
+		pushConjOne(EXCLUSIVEOR, layer, 2);
 	}
 	jumpBackward();
 	printf("parseLevelThreeItem : Current out layer : %d\n", layer);
@@ -455,6 +484,8 @@ void parseLevelTwoItem(wchar_t *expression)
 	{
 		parseLevelOneItem(expression);
 		printf("current operation : OR at layer %d\n", layer);
+		//第一类联结词压栈
+		pushConjOne(OR, layer, 2);
 	}
 	jumpBackward();
 	printf("parseLevelTwoItem : Current out layer : %d\n", layer);
@@ -470,6 +501,8 @@ void parseLevelOneItem(wchar_t *expression)
 	{
 		parseFactor(expression);
 		printf("current operation : AND at layer %d\n", layer);
+		//第一类联结词压栈
+		pushConjOne(AND, layer, 2);
 	}
 	jumpBackward();
 	printf("parseLevelOneItem : Current out layer : %d\n", layer);
@@ -491,19 +524,25 @@ void parseFactor(wchar_t *expression)
 	case NOT:
 		parseFactor(expression);
 		printf("current operation : NOT at layer %d\n", layer);
+		//第一类联结词压栈
+		pushConjOne(NOT, layer, 1);
 		break;
 	case LBRACE:
 		parseLevelFiveItem(expression);
 		if (getSymbol(expression) == RBRACE){}
 		break;
 	case TRUE:
+		//第一类联结词压栈
+		pushConjOne(TRUE, layer, 0);
 		break;
 	case FALSE:
+		//第一类联结词压栈
+		pushConjOne(FALSE, layer, 0);
 		break;
 	case IDENTIFIER:
 		wcsncpy(tempIdentifier,currentSymbol, IDENTIFIER_LENGTH + 1);
 		if (getSymbol(expression) == LBRACE)//自定义联结词
-		{
+		{//TODO
 			_searchFunResult = searchFunList(tempIdentifier);
 			if (_searchFunResult == -1)//当符号表中不存在时，则新建一个联结词
 			{
@@ -512,6 +551,13 @@ void parseFactor(wchar_t *expression)
 				{
 					functionList[funIndex].paraNumber = _paraNumber;
 					funIndex++;
+					//自定义联结词压栈
+					wcsncpy(runtimeStack[stackIndex].symbol, tempIdentifier, IDENTIFIER_LENGTH + 1);
+					runtimeStack[stackIndex].layer = layer;
+					runtimeStack[stackIndex].type = 3;
+					runtimeStack[stackIndex].paraNumber = _paraNumber;
+					stackIndex++;
+
 					break;
 				}
 				else //该联结词参数不为零
@@ -537,6 +583,13 @@ void parseFactor(wchar_t *expression)
 					{
 						wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
 						functionList[_tempFunIndex].paraNumber = _paraNumber;
+						//自定义联结词压栈
+						wcsncpy(runtimeStack[stackIndex].symbol, tempIdentifier, IDENTIFIER_LENGTH + 1);
+						runtimeStack[stackIndex].layer = layer;
+						runtimeStack[stackIndex].type = 3;
+						runtimeStack[stackIndex].paraNumber = _paraNumber;
+						stackIndex++;
+
 						break;
 					}
 				}
@@ -545,7 +598,16 @@ void parseFactor(wchar_t *expression)
 			{
 				if (getSymbol(expression) == RBRACE)
 				{
-					if (functionList[_searchFunResult].paraNumber == 0){break;}
+					if (functionList[_searchFunResult].paraNumber == 0)
+					{
+						//自定义联结词压栈
+						wcsncpy(runtimeStack[stackIndex].symbol, tempIdentifier, IDENTIFIER_LENGTH + 1);
+						runtimeStack[stackIndex].layer = layer;
+						runtimeStack[stackIndex].type = 3;
+						runtimeStack[stackIndex].paraNumber = _paraNumber;
+						stackIndex++;
+						break;
+					}
 					else {/*报错*/break; }
 				}
 				else
@@ -567,6 +629,13 @@ void parseFactor(wchar_t *expression)
 					{
 						wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
 						functionList[_searchFunResult].paraNumber = _paraNumber;
+
+						//自定义联结词压栈
+						wcsncpy(runtimeStack[stackIndex].symbol, tempIdentifier, IDENTIFIER_LENGTH + 1);
+						runtimeStack[stackIndex].layer = layer;
+						runtimeStack[stackIndex].type = 3;
+						runtimeStack[stackIndex].paraNumber = _paraNumber;
+						stackIndex++;
 						break;
 					}
 				}
@@ -576,12 +645,24 @@ void parseFactor(wchar_t *expression)
 		{
 			//预读了，所以要退一位
 			jumpBackward();
-			//首先查找是否定义了这个变元
-			if (searchVarList(tempIdentifier) == -1)
+			_searchFunResult = searchVarList(tempIdentifier);
+			if (_searchFunResult == -1)//首先查找是否定义了这个变元
 			{
 				//新建变元
 				wcsncpy(variableList[varIndex].name, tempIdentifier, IDENTIFIER_LENGTH + 1);
 				varIndex++;
+				//压栈
+				wcsncpy(runtimeStack[stackIndex].symbol, variableList[varIndex-1].name, IDENTIFIER_LENGTH + 1);
+				runtimeStack[stackIndex].layer = layer;
+				runtimeStack[stackIndex].type = 1;
+				stackIndex++;
+			}
+			else//找到了就直接压栈
+			{
+				wcsncpy(runtimeStack[stackIndex].symbol, variableList[_searchFunResult].name, IDENTIFIER_LENGTH + 1);
+				runtimeStack[stackIndex].layer = layer;
+				runtimeStack[stackIndex].type = 1;
+				stackIndex++;
 			}
 			break;
 		}
@@ -618,4 +699,15 @@ int searchFunList(wchar_t * name)
 		}
 	}
 	return -1;
+}
+
+void pushConjOne(int symbolIndex, int layer, int paraNumber)
+{
+	//第一类联结词压栈
+	runtimeStack[stackIndex].symbol[0] = symbolSet[symbolIndex];
+	runtimeStack[stackIndex].symbol[1] = L'\0';
+	runtimeStack[stackIndex].layer = layer;
+	runtimeStack[stackIndex].type = 1;
+	runtimeStack[stackIndex].paraNumber = paraNumber;
+	stackIndex++;
 }
