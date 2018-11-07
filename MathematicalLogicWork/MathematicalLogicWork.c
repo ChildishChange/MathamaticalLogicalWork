@@ -8,8 +8,6 @@
 #include <math.h>
 
 #pragma region MACRO
-
-
 #define MAXLENTH 1000 //单行最长长度
 #define MAXPARANUM 10 //函数最大参数数量
 #define IDENTIFIER_LENGTH 10 //标识符最大长度
@@ -17,12 +15,9 @@
 #define FUNCTION_NUMBER 10 //函数最大数量
 #define TRUTHTABLE_LENGTH 1024 //真值表最大长度
 #define MAXSTACKDEPTH 10000
-
 #pragma endregion
 
 #pragma region GLOBAL
-
-
 FILE *inputFile;
 FILE *outputFile;
 int layer = 0; //当前所处的语法树深度
@@ -34,14 +29,7 @@ struct function //函数列表
 {
 	wchar_t name[IDENTIFIER_LENGTH + 1];
 	int paraNumber;
-	wchar_t paras[MAXPARANUM];
 	wchar_t truthTable[TRUTHTABLE_LENGTH];
-	
-	//计算函数时，先获取其参数的值，然后调用
-	/*
-	按照参数顺序计算值，然后查找真值表，返回值
-	*/
-
 }functionList[FUNCTION_NUMBER];
 int funIndex = 0;
 
@@ -72,30 +60,17 @@ const enum symbol //词法符号
 	IDENTIFIER = 12, DIGITSTR
 };
 
-const wchar_t *symbolName[] =
-{
-	L"LBRACE", L"RBRACE", L"COMMA", L"SHARP",
-	L"TRUE", L"FALSE", L"AND", L"OR", L"NOT",
-	L"EXCLUSIVEOR", L"IMPLICATION", L"EQUIVALENCE",
-	L"IDENTIFIER", L"DIGITSTR"
-};
-
 const wchar_t symbolSet[] =
 {
 	L'(', L')', L',', L'#',
 	L'1', L'0', L'∧', L'∨', L'¬',
 	L'⊕', L'→', L'↔'
 };
-
 #pragma endregion
 
-
 #pragma region FUNCTION
-
 void jumpSpace(wchar_t *expression);
 int getSymbol(wchar_t *expression);
-
-
 void parseExpression(wchar_t *expression);
 void parseConj(wchar_t *expression);
 void parseLevelFiveItem(wchar_t *expression);
@@ -104,50 +79,24 @@ void parseLevelThreeItem(wchar_t *expression);
 void parseLevelTwoItem(wchar_t *expression);
 void parseLevelOneItem(wchar_t *expression);
 void parseFactor(wchar_t *expression);
-
 #pragma endregion
 
 #pragma region SYMBOL
-
 int searchVarList(wchar_t *name);
 int searchFunList(wchar_t *name);
-
 #pragma endregion
 
 #pragma region RUNTIMESTACK
-
 void pushConjOne(int symbolIndex, int layer, int paraNumber, int type);
 void getTruthValue(wchar_t * name, int type, int runtimeIndex);
 void getExpTruthValue();
 void moveStack(int runtimeIndex);
-
 #pragma endregion
 
 #pragma region COMPLETESET
-
+char calTruthValue(int functionIndex, char chosen[][5], int m);
 void judgeComplete();
-
 #pragma endregion
-
-
-#pragma region TODO
-/*
-TODO:
-生成运算栈
-计算运算栈时，对每一个逻辑联结词，包括自定义联结词
-按照layer从大到小，按照出现的先后顺序从先到后计算运算符
-
-
-TODO:
-关于运行栈
-第一类联结词中 0和1 可以直接计算值，考虑针对不同的联结词添加不同的函数
-
-
-*/
-
-#pragma endregion
-
-
 
 int main(int argc, char *argv[])
 {
@@ -177,8 +126,7 @@ int main(int argc, char *argv[])
 		printf("PARAMETER NUMBER ERROR:%d", argc - 1);
 		return 1;
 	}
-	
-	
+		
 	while (!feof(inputFile))
 	{
 		fgetws(expression, MAXLENTH - 1, inputFile);
@@ -186,7 +134,6 @@ int main(int argc, char *argv[])
 		{
 			expression[wcslen(expression) - 1] = L'\0';
 		}
-		
 		
 		parseExpression(expression);
 		wprintf(L"%s\n", expression);
@@ -201,36 +148,6 @@ int main(int argc, char *argv[])
 		{
 			judgeComplete();
 		}
-		
-		/*
-		funIndex--;
-		wprintf(L"Print Function Table:\n");
-		while (funIndex>=0)
-		{
-			wprintf(L"Num.%d function : %s\n",funIndex,functionList[funIndex].name);
-			wprintf(L"Number of parameters : %d\n",functionList[funIndex].paraNumber);
-			wprintf(L"Truth Table : %s\n",functionList[funIndex].truthTable);
-			funIndex--;
-		}
-
-		varIndex--;
-		wprintf(L"Print Variable Table:\n");
-		while (varIndex >= 0)
-		{
-			wprintf(L"Num.%d variable : %s\n", varIndex, variableList[varIndex].name);
-			varIndex--;
-		}
-
-		stackIndex--;
-		wprintf(L"Print Runtime Stack:\n");
-		while (stackIndex >= 0)
-		{
-			wprintf(L"Num.%d symbol : %s at layer %d\n", stackIndex, runtimeStack[stackIndex].symbol, runtimeStack[stackIndex].layer);
-			stackIndex--;
-		}
-		*/
-
-		
 
 		//归零四大天王
 		wmemset(expression, 0, MAXLENTH-1);
@@ -241,9 +158,6 @@ int main(int argc, char *argv[])
 	}
 	fclose(inputFile);
 	fclose(outputFile);
-	
-	
-	getchar();
 	return 0;
 }
 
