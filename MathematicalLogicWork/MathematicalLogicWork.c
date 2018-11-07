@@ -22,6 +22,9 @@
 
 #pragma region GLOBAL
 
+
+FILE *inputFile;
+FILE *outputFile;
 int layer = 0; //当前所处的语法树深度
 int startIndex = 0; //getSymbol运行前index所处的位置
 int index = 0; //当前词法分析到的位置
@@ -113,7 +116,7 @@ int searchFunList(wchar_t *name);
 
 #pragma region RUNTIMESTACK
 
-void pushConjOne(int symbolIndex,int layer, int paraNumber);
+void pushConjOne(int symbolIndex, int layer, int paraNumber, int type);
 void getTruthValue(wchar_t * name, int type, int runtimeIndex);
 void getExpTruthValue();
 void moveStack(int runtimeIndex);
@@ -144,8 +147,7 @@ int main(int argc, char *argv[])
 {
 	errno_t err;
 	wchar_t expression[MAXLENTH];
-	FILE *inputFile;
-	FILE *outputFile;
+
 	int _symbol;
 
 	if (argc == 3)
@@ -174,13 +176,19 @@ int main(int argc, char *argv[])
 	while (!feof(inputFile))
 	{
 		fgetws(expression, MAXLENTH - 1, inputFile);
-		expression[wcslen(expression) - 1] = L'\0';
+		if (expression[wcslen(expression) - 1] == L'\n')
+		{
+			expression[wcslen(expression) - 1] = L'\0';
+		}
+		
 		
 		parseExpression(expression);
 		wprintf(L"%s\n", expression);
+		fwprintf(outputFile,L"%s\n",expression);
 		
 		getExpTruthValue();
 
+		/*
 		funIndex--;
 		wprintf(L"Print Function Table:\n");
 		while (funIndex>=0)
@@ -206,6 +214,7 @@ int main(int argc, char *argv[])
 			wprintf(L"Num.%d symbol : %s at layer %d\n", stackIndex, runtimeStack[stackIndex].symbol, runtimeStack[stackIndex].layer);
 			stackIndex--;
 		}
+		*/
 
 		
 
@@ -214,6 +223,7 @@ int main(int argc, char *argv[])
 		index = 0;
 		funIndex = 0;
 		varIndex = 0;
+		stackIndex = 0;
 	}
 	fclose(inputFile);
 	fclose(outputFile);
@@ -316,7 +326,7 @@ int getSymbol(wchar_t * expression)
 void parseExpression(wchar_t * expression)
 {	
 	layer++;
-	printf("parseExpression : Current in layer : %d\n", layer);
+	//printf("parseExpression : Current in layer : %d\n", layer);
 	if (getSymbol(expression)==SHARP)
 	{
 		jumpBackward();
@@ -328,14 +338,14 @@ void parseExpression(wchar_t * expression)
 		parseLevelFiveItem(expression);
 		parseConj(expression);
 	}
-	printf("parseExpression : Current out layer : %d\n", layer);
+	//printf("parseExpression : Current out layer : %d\n", layer);
 	layer--;
 }
 
 void parseConj(wchar_t * expression)
 {
 	layer++;
-	printf("parseConj : Current in layer : %d\n", layer);
+	//printf("parseConj : Current in layer : %d\n", layer);
 	int _truthTableIndex = 0;
 	int _searchResult = -1;
 	int _sym = -1;
@@ -363,7 +373,7 @@ void parseConj(wchar_t * expression)
 
 							if (getSymbol(expression) == TRUE)
 							{
-								putchar('1');
+								//putchar('1');
 								functionList[funIndex].truthTable[_truthTableIndex++] = L'1';
 								continue;
 							}
@@ -372,13 +382,13 @@ void parseConj(wchar_t * expression)
 								jumpBackward();
 								if (getSymbol(expression) == FALSE)
 								{
-									putchar('0');
+									//putchar('0');
 									functionList[funIndex].truthTable[_truthTableIndex++] = L'0';
 								}
 								continue;
 							}
 						}
-						putchar('\n');
+						//putchar('\n');
 						jumpBackward();
 					}
 					functionList[funIndex].truthTable[_truthTableIndex] = L'\0';
@@ -399,7 +409,7 @@ void parseConj(wchar_t * expression)
 
 								if (getSymbol(expression) == TRUE)
 								{
-									putchar('1');
+									//putchar('1');
 									functionList[_searchResult].truthTable[_truthTableIndex++] = L'1';
 									continue;
 								}
@@ -408,13 +418,13 @@ void parseConj(wchar_t * expression)
 									jumpBackward();
 									if (getSymbol(expression) == FALSE)
 									{
-										putchar('0');
+										//putchar('0');
 										functionList[_searchResult].truthTable[_truthTableIndex++] = L'0';
 									}
 									continue;
 								}
 							}
-							putchar('\n');
+							//putchar('\n');
 							jumpBackward();
 						}
 						else{/*这里要报错*/}
@@ -430,92 +440,92 @@ void parseConj(wchar_t * expression)
 	{
 		jumpBackward();
 	}
-	printf("parseConj : Current out layer : %d\n", layer);
+	//printf("parseConj : Current out layer : %d\n", layer);
 	layer--;
 }
 
 void parseLevelFiveItem(wchar_t * expression)
 {
 	layer++;
-	printf("parseLevelFiveItem : Current in layer : %d\n", layer);
+	//printf("parseLevelFiveItem : Current in layer : %d\n", layer);
 	parseLevelFourItem(expression);
 	while (getSymbol(expression) == EQUIVALENCE)
 	{	
 		parseLevelFourItem(expression);
-		printf("current operation : EQUIVALENCE at layer %d\n",layer);
+		//printf("current operation : EQUIVALENCE at layer %d\n",layer);
 		//第一类联结词压栈
 		pushConjOne(EQUIVALENCE, layer, 2,2);
 	}
 	jumpBackward();
-	printf("parseLevelFiveItem : Current out layer : %d\n", layer);
+	//printf("parseLevelFiveItem : Current out layer : %d\n", layer);
 	layer--;
 }
 
 void parseLevelFourItem(wchar_t *expression)
 {
 	layer++;
-	printf("parseLevelFourItem : Current in layer : %d\n", layer);
+	//printf("parseLevelFourItem : Current in layer : %d\n", layer);
 	parseLevelThreeItem(expression);
 	while (getSymbol(expression) == IMPLICATION)
 	{
 		parseLevelThreeItem(expression);
-		printf("current operation : IMPLICATION at layer %d\n", layer);
+		//printf("current operation : IMPLICATION at layer %d\n", layer);
 		//第一类联结词压栈
 		pushConjOne(IMPLICATION, layer, 2,2);
 	}
 	jumpBackward();
-	printf("parseLevelFourItem : Current out layer : %d\n", layer);
+	//printf("parseLevelFourItem : Current out layer : %d\n", layer);
 	layer--;
 }
 
 void parseLevelThreeItem(wchar_t *expression)
 {
 	layer++;
-	printf("parseLevelThreeItem : Current in layer : %d\n", layer);
+	//printf("parseLevelThreeItem : Current in layer : %d\n", layer);
 	parseLevelTwoItem(expression);
 	while (getSymbol(expression) == EXCLUSIVEOR)
 	{
 		parseLevelTwoItem(expression);
-		printf("current operation : EXCLUSIVEOR at layer %d\n", layer);
+		//printf("current operation : EXCLUSIVEOR at layer %d\n", layer);
 		//第一类联结词压栈
 		pushConjOne(EXCLUSIVEOR, layer, 2,2);
 	}
 	jumpBackward();
-	printf("parseLevelThreeItem : Current out layer : %d\n", layer);
+	//printf("parseLevelThreeItem : Current out layer : %d\n", layer);
 	layer--;
 }
 
 void parseLevelTwoItem(wchar_t *expression)
 {
 	layer++;
-	printf("parseLevelTwoItem : Current in layer : %d\n", layer);
+	//printf("parseLevelTwoItem : Current in layer : %d\n", layer);
 	parseLevelOneItem(expression);
 	while (getSymbol(expression) == OR)
 	{
 		parseLevelOneItem(expression);
-		printf("current operation : OR at layer %d\n", layer);
+		//printf("current operation : OR at layer %d\n", layer);
 		//第一类联结词压栈
 		pushConjOne(OR, layer, 2,2);
 	}
 	jumpBackward();
-	printf("parseLevelTwoItem : Current out layer : %d\n", layer);
+	//printf("parseLevelTwoItem : Current out layer : %d\n", layer);
 	layer--;
 }
 
 void parseLevelOneItem(wchar_t *expression)
 {
 	layer++;
-	printf("parseLevelOneItem : Current in layer : %d\n", layer);
+	//printf("parseLevelOneItem : Current in layer : %d\n", layer);
 	parseFactor(expression);
 	while (getSymbol(expression)==AND)
 	{
 		parseFactor(expression);
-		printf("current operation : AND at layer %d\n", layer);
+		//printf("current operation : AND at layer %d\n", layer);
 		//第一类联结词压栈
 		pushConjOne(AND, layer, 2,2);
 	}
 	jumpBackward();
-	printf("parseLevelOneItem : Current out layer : %d\n", layer);
+	//printf("parseLevelOneItem : Current out layer : %d\n", layer);
 	layer--;
 }
 
@@ -527,13 +537,13 @@ void parseFactor(wchar_t *expression)
 	int _searchFunResult = -1;
 	
 	layer++;
-	printf("parseFactor : Current in layer : %d\n", layer);
+	//printf("parseFactor : Current in layer : %d\n", layer);
 
 	switch (getSymbol(expression))
 	{
 	case NOT:
 		parseFactor(expression);
-		printf("current operation : NOT at layer %d\n", layer);
+		//printf("current operation : NOT at layer %d\n", layer);
 		//第一类联结词压栈
 		pushConjOne(NOT, layer, 1,2);
 		break;
@@ -583,7 +593,7 @@ void parseFactor(wchar_t *expression)
 
 					while (getSymbol(expression) == COMMA)
 					{
-						funIndex++;
+						//funIndex++;
 						parseLevelFiveItem(expression);
 						_paraNumber++;
 					}
@@ -591,7 +601,7 @@ void parseFactor(wchar_t *expression)
 					jumpBackward();
 					if (getSymbol(expression) == RBRACE)
 					{
-						wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
+						//wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
 						functionList[_tempFunIndex].paraNumber = _paraNumber;
 						//自定义联结词压栈
 						wcsncpy(runtimeStack[stackIndex].symbol, tempIdentifier, IDENTIFIER_LENGTH + 1);
@@ -637,7 +647,7 @@ void parseFactor(wchar_t *expression)
 					jumpBackward();
 					if (getSymbol(expression) == RBRACE)
 					{
-						wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
+						//wprintf(L"current operation : %s at layer %d\n", tempIdentifier, layer);
 						functionList[_searchFunResult].paraNumber = _paraNumber;
 
 						//自定义联结词压栈
@@ -681,7 +691,7 @@ void parseFactor(wchar_t *expression)
 		jumpSpace(expression);
 		break;
 	}
-	printf("parseFactor : Current out layer : %d\n", layer);
+	//printf("parseFactor : Current out layer : %d\n", layer);
 	layer--;
 }
 
@@ -796,7 +806,7 @@ void getTruthValue(wchar_t * name,int type,int runtimeIndex)
 			_trueValueIndex *= 2;
 			_trueValueIndex += runtimeStack[i].value;
 		}
-		runtimeStack[runtimeIndex].value = _wtoi(functionList[_searchResult].truthTable[_trueValueIndex]);
+		runtimeStack[runtimeIndex].value = (functionList[_searchResult].truthTable[_trueValueIndex]-L'0');
 		moveStack(runtimeIndex);
 		return;
 	}
@@ -804,8 +814,6 @@ void getTruthValue(wchar_t * name,int type,int runtimeIndex)
 
 void getExpTruthValue()
 {
-	//现在我们有一个运行栈
-	
 	int i = 0;
 	int j = 0;
 	int _deepest = -1;
@@ -821,15 +829,19 @@ void getExpTruthValue()
 	for (j = 0; j < varIndex; j++)//对命题变元赋值
 	{
 		wprintf(L"%s\t", variableList[j].name);
+		fwprintf(outputFile,L"%s\t",variableList[j].name);
 	}
-	putchar('\n');
-
+	printf("TruthValue\n");
+	fputws(L"TruthValue\n", outputFile);
+	
 	for (i = 0; i < _repeatTimes;i++)//对所有取值进行赋值
 	{
 		for (j = 0; j < varIndex; j++)//对命题变元赋值
 		{
 			variableList[j].truthValue = ((1 << (varIndex - 1 - j))& i) >> (varIndex - 1 - j);
 			printf("%d\t", variableList[j].truthValue);
+			fwprintf(outputFile,L"%d\t", variableList[j].truthValue);
+			
 		}
 		
 		for (j = 0; j < stackIndex; j++)//将赋值带入运行栈
@@ -839,7 +851,6 @@ void getExpTruthValue()
 				getTruthValue(runtimeStack[j].symbol, 1, j);
 			}
 		}
-
 		while (stackIndex > 1)
 		{
 			for (j = 0; j < stackIndex; j++)//找到第一个最深
@@ -859,27 +870,19 @@ void getExpTruthValue()
 			}
 			_deepest = -1;
 		}
-		printf("Truth Value:%d\n",runtimeStack[stackIndex-1].value);
+		printf("%d\n",runtimeStack[stackIndex-1].value);
+		fwprintf(outputFile,L"%d\n", runtimeStack[stackIndex - 1].value);
 		//把运行栈复制回去
-		
 		stackIndex = tempStackIndex;
 		for (j = 0; j < tempStackIndex; j++)
 		{
 			runtimeStack[j] = tempStack[j];
 		}
-
 	}
-
-	//计算运算栈时，对每一个逻辑联结词，包括自定义联结词
-	//按照layer从大到小，按照出现的先后顺序从先到后计算运算符
-	
-
-	return 0;
 }
 
 void moveStack(int runtimeIndex)
 {
-	//TODO 还差移动，从runtimeIndex开始，往前移动paraNumber位，stackIndex减去对应数值
 	int i;
 	int len = runtimeStack[runtimeIndex].paraNumber;
 	for (i = runtimeIndex; i < stackIndex; i++)
@@ -887,5 +890,4 @@ void moveStack(int runtimeIndex)
 		runtimeStack[i - len] = runtimeStack[i];
 	}
 	stackIndex -= len;
-
 }
