@@ -123,6 +123,12 @@ void moveStack(int runtimeIndex);
 
 #pragma endregion
 
+#pragma region COMPLETESET
+
+void judgeComplete();
+
+#pragma endregion
+
 
 #pragma region TODO
 /*
@@ -186,8 +192,16 @@ int main(int argc, char *argv[])
 		wprintf(L"%s\n", expression);
 		fwprintf(outputFile,L"%s\n",expression);
 		
-		getExpTruthValue();
-
+		if (stackIndex != 0)
+		{
+			getExpTruthValue();
+		}
+		
+		if (funIndex > 0)
+		{
+			judgeComplete();
+		}
+		
 		/*
 		funIndex--;
 		wprintf(L"Print Function Table:\n");
@@ -890,4 +904,82 @@ void moveStack(int runtimeIndex)
 		runtimeStack[i - len] = runtimeStack[i];
 	}
 	stackIndex -= len;
+}
+
+char calTruthValue(int functionIndex, char chosen[][5],int m)
+{
+	int paraNumber = functionList[functionIndex].paraNumber;
+	int truthIndex = 0;
+	for (int i = 0; i < paraNumber; i++)
+	{
+		truthIndex *= 2;
+		truthIndex += chosen[i][m]- '0';
+	}
+	if (functionList[functionIndex].truthTable[truthIndex] == L'1')
+		return '1';
+	else
+		return '0';
+}
+
+void judgeComplete()
+{
+	char truthTableSet[16][5] = { "0101\0","0011\0" };
+	int truthTableSize = 2;
+	int condition = 1;
+	int i, j, k, m;
+	char result[5];
+	char chosen[16][5];
+	int temp = 0;
+	int searchResult = -2;
+	int tempSize = 0;
+	while (condition)
+	{
+		condition = 0;
+		for (i = 0; i < funIndex; i++)
+		{
+			k = pow(truthTableSize,functionList[i].paraNumber);
+			tempSize = truthTableSize;
+			for (j = 0; j < k; j++)
+			{
+				searchResult = -1;
+				temp = j;
+				
+				//选取这n个元素，这里可能反了
+				for (m = 0;m< functionList[i].paraNumber;m++)
+				{
+					strncpy(chosen[m], truthTableSet[temp%tempSize], 5);
+					temp /= tempSize;
+				}
+				//计算联结词
+				for (m = 0; m < 4; m++)
+				{
+					result[m] = calTruthValue(i,chosen,m);
+				}
+				result[4] = '\0';
+				for (m = 0; m < truthTableSize; m++)
+				{
+					if (strncmp(truthTableSet[m],result,4) == 0)
+					{
+						searchResult = m;
+						break;
+					}
+				}
+				if (searchResult ==-1)
+				{
+					strncpy(truthTableSet[truthTableSize++],result,5);
+					condition = 1;
+				}
+			}
+		}
+	}
+	if (truthTableSize == 16)
+	{
+		printf("COMPLETE\n");
+		fwprintf(outputFile,L"COMPLETE\n");
+	}
+	else
+	{
+		printf("NOT COMPLETE\n");
+		fwprintf(outputFile, L"NOT COMPLETE\n");
+	}
 }
